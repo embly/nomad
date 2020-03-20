@@ -123,6 +123,22 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 		-tags "$(GO_TAGS)" \
 		-o "$@.exe"
 
+pkg/linux_ppc64le/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
+	@CGO_ENABLED=1 GOOS=linux GOARCH=ppc64le \
+		go build \
+		-ldflags $(GO_LDFLAGS) \
+		-tags "$(GO_TAGS)" \
+		-o "$@"
+
+pkg/linux_s390x/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
+	@echo "==> Building $@ with tags $(GO_TAGS)..."
+	@CGO_ENABLED=1 GOOS=linux GOARCH=s390x \
+		go build \
+		-ldflags $(GO_LDFLAGS) \
+		-tags "$(GO_TAGS)" \
+		-o "$@"
+
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
 
@@ -178,6 +194,9 @@ check: ## Lint the source code
 
 	@echo "==> Check API package is isolated from rest"
 	@if go list --test -f '{{ join .Deps "\n" }}' ./api | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
+
+	@echo "==> Check non-vendored packages"
+	@if go list --test -tags "$(GO_TAGS)" -f '{{join .Deps "\n"}}' . | grep -v github.com/hashicorp/nomad.test | xargs go list -tags "$(GO_TAGS)" -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -v -e github.com/hashicorp/nomad; then echo "  found referenced packages ^^ that are not vendored"; exit 1; fi
 
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts
