@@ -125,6 +125,13 @@ var basicConfig = &Config{
 			RetryIntervalHCL: "15s",
 			RetryMaxAttempts: 3,
 		},
+		DefaultSchedulerConfig: &structs.SchedulerConfiguration{
+			PreemptionConfig: structs.PreemptionConfig{
+				SystemSchedulerEnabled:  true,
+				BatchSchedulerEnabled:   true,
+				ServiceSchedulerEnabled: true,
+			},
+		},
 	},
 	ACL: &ACLConfig{
 		Enabled:          true,
@@ -133,6 +140,31 @@ var basicConfig = &Config{
 		PolicyTTL:        60 * time.Second,
 		PolicyTTLHCL:     "60s",
 		ReplicationToken: "foobar",
+	},
+	Audit: &config.AuditConfig{
+		Enabled: helper.BoolToPtr(true),
+		Sinks: []*config.AuditSink{
+			{
+				DeliveryGuarantee: "enforced",
+				Name:              "file",
+				Type:              "file",
+				Format:            "json",
+				Path:              "/opt/nomad/audit.log",
+				RotateDuration:    24 * time.Hour,
+				RotateDurationHCL: "24h",
+				RotateBytes:       100,
+				RotateMaxFiles:    10,
+			},
+		},
+		Filters: []*config.AuditFilter{
+			{
+				Name:       "default",
+				Type:       "HTTPEvent",
+				Endpoints:  []string{"/v1/metrics"},
+				Stages:     []string{"*"},
+				Operations: []string{"*"},
+			},
+		},
 	},
 	Telemetry: &Telemetry{
 		StatsiteAddr:               "127.0.0.1:1234",
@@ -389,6 +421,7 @@ func TestConfig_ParseMerge(t *testing.T) {
 		Autopilot: config.DefaultAutopilotConfig(),
 		Client:    &ClientConfig{},
 		Server:    &ServerConfig{},
+		Audit:     &config.AuditConfig{},
 	}
 	merged := oldDefault.Merge(actual)
 	require.Equal(t, basicConfig.Client, merged.Client)
@@ -479,6 +512,9 @@ func (c *Config) addDefaults() {
 	}
 	if c.ACL == nil {
 		c.ACL = &ACLConfig{}
+	}
+	if c.Audit == nil {
+		c.Audit = &config.AuditConfig{}
 	}
 	if c.Consul == nil {
 		c.Consul = config.DefaultConsulConfig()
@@ -575,6 +611,31 @@ var sample0 = &Config{
 	ACL: &ACLConfig{
 		Enabled: true,
 	},
+	Audit: &config.AuditConfig{
+		Enabled: helper.BoolToPtr(true),
+		Sinks: []*config.AuditSink{
+			{
+				DeliveryGuarantee: "enforced",
+				Name:              "file",
+				Type:              "file",
+				Format:            "json",
+				Path:              "/opt/nomad/audit.log",
+				RotateDuration:    24 * time.Hour,
+				RotateDurationHCL: "24h",
+				RotateBytes:       100,
+				RotateMaxFiles:    10,
+			},
+		},
+		Filters: []*config.AuditFilter{
+			{
+				Name:       "default",
+				Type:       "HTTPEvent",
+				Endpoints:  []string{"/v1/metrics"},
+				Stages:     []string{"*"},
+				Operations: []string{"*"},
+			},
+		},
+	},
 	Telemetry: &Telemetry{
 		PrometheusMetrics:        true,
 		DisableHostname:          true,
@@ -637,6 +698,31 @@ var sample1 = &Config{
 	},
 	ACL: &ACLConfig{
 		Enabled: true,
+	},
+	Audit: &config.AuditConfig{
+		Enabled: helper.BoolToPtr(true),
+		Sinks: []*config.AuditSink{
+			{
+				Name:              "file",
+				Type:              "file",
+				DeliveryGuarantee: "enforced",
+				Format:            "json",
+				Path:              "/opt/nomad/audit.log",
+				RotateDuration:    24 * time.Hour,
+				RotateDurationHCL: "24h",
+				RotateBytes:       100,
+				RotateMaxFiles:    10,
+			},
+		},
+		Filters: []*config.AuditFilter{
+			{
+				Name:       "default",
+				Type:       "HTTPEvent",
+				Endpoints:  []string{"/v1/metrics"},
+				Stages:     []string{"*"},
+				Operations: []string{"*"},
+			},
+		},
 	},
 	Telemetry: &Telemetry{
 		PrometheusMetrics:        true,

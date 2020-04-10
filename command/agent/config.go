@@ -169,6 +169,9 @@ type Config struct {
 	// Limits contains the configuration for timeouts.
 	Limits config.Limits `hcl:"limits"`
 
+	// Audit contains the configuration for audit logging.
+	Audit *config.AuditConfig `hcl:"audit"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -740,6 +743,11 @@ func newDevModeConfig(devMode, connectMode bool) (*devModeConfig, error) {
 }
 
 func (mode *devModeConfig) networkConfig() error {
+	if runtime.GOOS == "windows" {
+		mode.bindAddr = "127.0.0.1"
+		mode.iface = "Loopback Pseudo-Interface 1"
+		return nil
+	}
 	if runtime.GOOS == "darwin" {
 		mode.bindAddr = "127.0.0.1"
 		mode.iface = "lo0"
@@ -865,6 +873,7 @@ func DefaultConfig() *Config {
 		Sentinel:           &config.SentinelConfig{},
 		Version:            version.GetVersion(),
 		Autopilot:          config.DefaultAutopilotConfig(),
+		Audit:              &config.AuditConfig{},
 		DisableUpdateCheck: helper.BoolToPtr(false),
 		Limits:             config.DefaultLimits(),
 	}
@@ -994,6 +1003,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.ACL = &server
 	} else if b.ACL != nil {
 		result.ACL = result.ACL.Merge(b.ACL)
+	}
+
+	// Apply the Audit config
+	if result.Audit == nil && b.Audit != nil {
+		audit := *b.Audit
+		result.Audit = &audit
+	} else if b.ACL != nil {
+		result.Audit = result.Audit.Merge(b.Audit)
 	}
 
 	// Apply the ports config
