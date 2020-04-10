@@ -237,11 +237,12 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+var createNetworksLock sync.Mutex
+
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
 	}
-
 	var driverConfig TaskConfig
 
 	if err := cfg.DecodeDriverConfig(&driverConfig); err != nil {
@@ -276,6 +277,29 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		d.logger.Error("failed to create container configuration", "image_name", driverConfig.Image,
 			"image_id", id, "error", err)
 		return nil, nil, fmt.Errorf("Failed to create container configuration for image %q (%q): %v", driverConfig.Image, id, err)
+	}
+
+	if driverConfig.NetworkMode == "create_shared" {
+		// TODO: this is kind of a hack, to set the value of off a changed config value
+		// and then picking it up after the function return. more explicit/direct?
+		for sharedNetworkName := range containerCfg.NetworkingConfig.EndpointsConfig {
+			createNetworksLock.Lock()
+			networks, err := client.FilteredListNetworks(docker.NetworkFilterOpts{
+				"name": map[string]bool{sharedNetworkName: true},
+			})
+			if len(networks) == 0 {
+				client.CreateNetwork(docker.CreateNetworkOptions{
+					Name:   sharedNetworkName,
+					Driver: "bridge",
+				})
+			}
+			createNetworksLock.Unlock()
+			d.logger.Info("MAXUNIQUE", networks, err, sharedNetworkName, 1)
+		}
+		// net, err := client.CreateNetwork(docker.CreateNetworkOptions{
+		// 	Name:   "known-unique",
+		// 	Driver: "bridge",
+		// })
 	}
 
 	startAttempts := 0
@@ -711,6 +735,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		Memory:    task.Resources.LinuxResources.MemoryLimitBytes,
 		CPUShares: task.Resources.LinuxResources.CPUShares,
 
+		// TODO: MemoryReservation?
+
 		// Binds are used to mount a host volume into the container. We mount a
 		// local directory for storage and a shared alloc directory that can be
 		// used to share data between different tasks in the same task group.
@@ -727,6 +753,10 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			return c, fmt.Errorf("requested docker-runtime %q was not found", d.config.GPURuntimeName)
 		}
 		hostConfig.Runtime = d.config.GPURuntimeName
+	}
+
+	if driverConfig.Runtime != "" {
+		hostConfig.Runtime = driverConfig.Runtime
 	}
 
 	// Calculate CPU Quota
@@ -906,6 +936,10 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// set the docker network mode
 	hostConfig.NetworkMode = driverConfig.NetworkMode
 
+	//
+	if hostConfig.NetworkMode == "create_shared" {
+		hostConfig.NetworkMode = fmt.Sprintf("nomad-%s-%s", task.JobName, task.TaskGroupName)
+	}
 	// if the driver config does not specify a network mode then try to use the
 	// shared alloc network
 	if hostConfig.NetworkMode == "" {
@@ -1245,6 +1279,14 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 			h.logger.Debug("not removing container due to config")
 		}
 	}
+
+	// TODO: clean up shared network if this container is the last
+	// one to use it
+	// var driverConfig TaskConfig
+	// h.task.DecodeDriverConfig(&driverConfig)
+	// if driverConfig.NetworkMode == "create_shared" {
+
+	// }
 
 	if err := d.cleanupImage(h); err != nil {
 		h.logger.Error("failed to cleanup image after destroying container",

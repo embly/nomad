@@ -25,7 +25,7 @@ const (
 	ContainerNotRunningError = "Container not running"
 
 	// pluginName is the name of the plugin
-	pluginName = "docker-embly"
+	pluginName = "docker"
 
 	// fingerprintPeriod is the interval at which the driver will send fingerprint responses
 	fingerprintPeriod = 30 * time.Second
@@ -251,7 +251,6 @@ var (
 			hclspec.NewAttr("nvidia_runtime", "string", false),
 			hclspec.NewLiteral(`"nvidia"`),
 		),
-
 		// image to use when creating a network namespace parent container
 		"infra_image": hclspec.NewDefault(
 			hclspec.NewAttr("infra_image", "string", false),
@@ -341,6 +340,7 @@ var (
 		})),
 		"network_aliases": hclspec.NewAttr("network_aliases", "list(string)", false),
 		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
+		"runtime":         hclspec.NewAttr("runtime", "string", false),
 		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
 		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
 		"port_map":        hclspec.NewAttr("port_map", "list(map(number))", false),
@@ -408,6 +408,7 @@ type TaskConfig struct {
 	PidMode           string             `codec:"pid_mode"`
 	PortMap           hclutils.MapStrInt `codec:"port_map"`
 	Privileged        bool               `codec:"privileged"`
+	Runtime           string             `codec:"runtime"`
 	ReadonlyRootfs    bool               `codec:"readonly_rootfs"`
 	SecurityOpt       []string           `codec:"security_opt"`
 	ShmSize           int64              `codec:"shm_size"`

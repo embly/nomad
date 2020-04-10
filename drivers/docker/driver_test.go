@@ -1028,6 +1028,28 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	require.Equal(t, containerName, c.Name)
 }
 
+func TestDockerDriver_Runtime(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	cfg.Runtime = "runc"
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client, d, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	require.Exactly(t, cfg.Runtime, container.HostConfig.Runtime)
+}
 func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
 	t.Parallel()
 
