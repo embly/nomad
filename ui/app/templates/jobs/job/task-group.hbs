@@ -5,8 +5,9 @@
   </ul>
 </div>
 <section class="section">
-  <h1 class="title">
-    {{model.name}}
+  <h1 class="title with-flex">
+    <span>{{model.name}}</span>
+    {{exec/open-button job=model.job taskGroup=model}}
   </h1>
 
   <div class="boxed-section is-small">
@@ -80,12 +81,13 @@
             {{/t.body}}
           {{/list-table}}
           <div class="table-foot">
+            {{page-size-select onChange=(action resetPagination)}}
             <nav class="pagination">
               <div class="pagination-numbers">
                 {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
               </div>
-              {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
-              {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+              {{#p.prev class="pagination-previous"}}{{x-icon "chevron-left"}}{{/p.prev}}
+              {{#p.next class="pagination-next"}}{{x-icon "chevron-right"}}{{/p.next}}
               <ul class="pagination-list"></ul>
             </nav>
           </div>
@@ -125,7 +127,15 @@
           {{/t.head}}
           {{#t.body as |row|}}
             <tr data-test-volume>
-              <td data-test-volume-name>{{row.model.name}}</td>
+              <td data-test-volume-name>
+                {{#if row.model.isCSI}}
+                  {{#link-to "csi.volumes.volume" row.model.name (query-params volumeNamespace=row.model.namespace.id)}}
+                    {{row.model.name}}
+                  {{/link-to}}
+                {{else}}
+                  {{row.model.name}}
+                {{/if}}
+              </td>
               <td data-test-volume-type>{{row.model.type}}</td>
               <td data-test-volume-source>{{row.model.source}}</td>
               <td data-test-volume-permissions>{{if row.model.readOnly "Read" "Read/Write"}}</td>

@@ -437,6 +437,10 @@ func networkUpdated(netA, netB []*structs.NetworkResource) bool {
 		an := netA[idx]
 		bn := netB[idx]
 
+		if an.Mode != bn.Mode {
+			return true
+		}
+
 		if an.MBits != bn.MBits {
 			return true
 		}
@@ -637,7 +641,8 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		newAlloc.Job = nil       // Use the Job in the Plan
 		newAlloc.Resources = nil // Computed in Plan Apply
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
-			Tasks: option.TaskResources,
+			Tasks:          option.TaskResources,
+			TaskLifecycles: option.TaskLifecycles,
 			Shared: structs.AllocatedSharedResources{
 				DiskMB: int64(update.TaskGroup.EphemeralDisk.SizeMB),
 			},
@@ -914,7 +919,8 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		newAlloc.Job = nil       // Use the Job in the Plan
 		newAlloc.Resources = nil // Computed in Plan Apply
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
-			Tasks: option.TaskResources,
+			Tasks:          option.TaskResources,
+			TaskLifecycles: option.TaskLifecycles,
 			Shared: structs.AllocatedSharedResources{
 				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
 			},

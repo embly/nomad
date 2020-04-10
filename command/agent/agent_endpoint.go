@@ -14,13 +14,13 @@ import (
 
 	"github.com/docker/docker/pkg/ioutils"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/copystructure"
-	"github.com/ugorji/go/codec"
 )
 
 type Member struct {
@@ -199,6 +199,14 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	// if node and server were requested return error
 	if args.NodeID != "" && args.ServerID != "" {
 		return nil, CodedError(400, "Cannot target node and server simultaneously")
+	}
+
+	// Force the Content-Type to avoid Go's http.ResponseWriter from
+	// detecting an incorrect or unsafe one.
+	if plainText {
+		resp.Header().Set("Content-Type", "text/plain")
+	} else {
+		resp.Header().Set("Content-Type", "application/json")
 	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)

@@ -133,6 +133,14 @@ server {
     retry_max      = 3
     retry_interval = "15s"
   }
+
+  default_scheduler_config {
+    preemption_config {
+      batch_scheduler_enabled   = true
+      system_scheduler_enabled  = true
+      service_scheduler_enabled = true
+    }
+  }
 }
 
 acl {
@@ -140,6 +148,27 @@ acl {
   token_ttl         = "60s"
   policy_ttl        = "60s"
   replication_token = "foobar"
+}
+
+audit {
+  enabled = true
+
+  sink "file" {
+    type               = "file"
+    delivery_guarantee = "enforced"
+    format             = "json"
+    path               = "/opt/nomad/audit.log"
+    rotate_bytes       = 100
+    rotate_duration    = "24h"
+    rotate_max_files   = 10
+  }
+
+  filter "default" {
+    type       = "HTTPEvent"
+    endpoints  = ["/v1/metrics"]
+    stages     = ["*"]
+    operations = ["*"]
+  }
 }
 
 telemetry {
